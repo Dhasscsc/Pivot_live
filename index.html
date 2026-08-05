@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pivot Point அட்டவணை - தாஸ்</title>
+<style>
+  :root{
+    --bg:#0b1220; --card:#111a2e; --card2:#0e1729; --border:#22304a;
+    --text:#e6edf7; --muted:#8291ab;
+    --green:#22c55e; --red:#ef4444; --amber:#f59e0b; --blue:#3b82f6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;font-family:"Noto Sans Tamil","Segoe UI",sans-serif;
+    background:var(--bg);color:var(--text);min-height:100vh;padding:14px;
+  }
+  .wrap{max-width:1900px;margin:0 auto;}
+  header{
+    display:flex;justify-content:space-between;align-items:center;
+    flex-wrap:wrap;gap:10px;margin-bottom:14px;
+  }
+  header h1{margin:0;font-size:18px;color:#93c5fd;}
+  .topBtns{display:flex;gap:8px;flex-wrap:wrap;}
+  .topBtns button{
+    padding:9px 14px;border:none;border-radius:8px;font-size:13px;font-weight:600;
+    cursor:pointer;background:var(--card);color:var(--text);border:1px solid var(--border);
+  }
+  .topBtns .primary{background:var(--blue);color:#fff;border:none;}
+
+  .searchRow{margin-bottom:12px;}
+  .searchRow input{
+    width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border);
+    background:var(--card);color:var(--text);font-size:14px;text-transform:uppercase;
+  }
+
+  .statsRow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .statCard{
+    flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);
+    border-radius:10px;padding:10px 12px;text-align:center;cursor:pointer;
+    display:flex;flex-direction:column;gap:4px;transition:border-color .15s ease;
+  }
+  .statCard:hover{border-color:var(--blue);}
+  .statCard.active{border-color:var(--blue);background:rgba(59,130,246,0.12);}
+  .statLabel{font-size:11px;color:var(--muted);}
+  .statVal{font-size:18px;font-weight:700;}
+  .statVal.green{color:var(--green);}
+  .statVal.red{color:var(--red);}
+
+  .filterRow{
+    display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;
+  }
+  .filterRow input{
+    width:110px;padding:9px 10px;border-radius:8px;border:1px solid var(--border);
+    background:var(--card);color:var(--text);font-size:13px;
+  }
+  .filterRow span{color:var(--muted);}
+  .btnFilterGo{
+    padding:9px 14px;border:none;border-radius:8px;background:var(--green);
+    color:#04210f;font-weight:700;font-size:13px;cursor:pointer;
+  }
+  .btnFilterClear{
+    padding:9px 12px;border:none;border-radius:8px;background:var(--red);
+    color:#fff;font-weight:700;font-size:13px;cursor:pointer;
+  }
+
+  #status{text-align:center;color:var(--muted);font-size:13px;padding:24px 0;}
+  #status.error{color:var(--red);}
+
+  .tableWrap{overflow:auto;max-height:70vh;border-radius:12px;border:1px solid var(--border);}
+  table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap;}
+  thead th{
+    background:var(--card2);color:var(--muted);text-align:right;
+    padding:9px 9px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;
+    position:sticky;top:0;z-index:5;
+  }
+  thead th:first-child, thead th:nth-child(2){text-align:left;}
+  tbody td{padding:8px 9px;border-top:1px solid var(--border);text-align:right;font-family:monospace;}
+  tbody td:first-child, tbody td:nth-child(2){text-align:left;font-family:inherit;}
+  tbody tr:hover{background:rgba(255,255,255,0.03);}
+  .stockName{font-weight:700;cursor:pointer;}
+  .stockName:hover{color:var(--blue);text-decoration:underline;}
+
+  #toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+    background:var(--blue);color:#fff;padding:10px 18px;border-radius:10px;
+    font-size:13px;font-weight:600;opacity:0;pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease;z-index:1200;
+    box-shadow:0 4px 16px rgba(0,0,0,0.35);
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  .autoOff{background:var(--red) !important;color:#fff !important;border:none !important;}
+  .rec{font-weight:700;padding:3px 10px;border-radius:6px;font-size:11px;}
+  .rec.BUY{background:rgba(34,197,94,0.18);color:var(--green);}
+  .rec.SELL{background:rgba(239,68,68,0.18);color:var(--red);}
+  .pivotCol{color:var(--amber);font-weight:700;}
+  .resCol{color:var(--red);}
+  .supCol{color:var(--green);}
+  .pivotVal{cursor:pointer;}
+  .pivotVal:hover{text-decoration:underline;}
+  .volLow{color:var(--amber);font-weight:600;}
+  .volHigh{color:#7dd3fc;font-weight:600;}
+  .footRow{
+    display:flex;justify-content:space-between;color:var(--muted);
+    font-size:12px;padding:8px 4px;
+  }
+
+  #settingsModal{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);
+    z-index:999;align-items:center;justify-content:center;
+  }
+  .modalCard{
+    background:#111a2e;border:1px solid var(--border);border-radius:14px;
+    padding:20px;width:90%;max-width:440px;
+  }
+  .modalCard h3{margin-top:0;color:#93c5fd;font-size:16px;}
+  .modalCard p{color:var(--muted);font-size:12px;line-height:1.5;}
+  .modalCard label{font-size:12px;color:var(--muted);display:block;margin-top:10px;}
+  .modalCard input{
+    width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);
+    background:var(--card2);color:var(--text);font-size:12px;margin-top:4px;
+  }
+  .modalActions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px;}
+  .modalActions button{padding:8px 16px;border:none;border-radius:8px;font-size:13px;cursor:pointer;}
+  .btnCancel{background:transparent;border:1px solid var(--border) !important;color:var(--text);}
+  .btnSave{background:var(--blue);color:#fff;font-weight:700;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>📐 Pivot Point அட்டவணை</h1>
+    <div class="topBtns">
+      <button class="primary" onclick="loadData()">🔄 புதுப்பி</button>
+      <button id="prevCloseBtn" onclick="togglePrevClose()">📅 நேற்றைய க்ளோஸ்</button>
+      <button id="autoToggleBtn" onclick="toggleAutoRefresh()">⏸️ ஆட்டோ ஆஃப்</button>
+      <button onclick="openSettings()">⚙️ Setup</button>
+    </div>
+  </header>
+
+  <div class="statsRow" id="statsRow" style="display:none;">
+    <div class="statCard" id="statAll" onclick="setFilter('all')">
+      <span class="statLabel">மொத்தம்</span>
+      <span class="statVal" id="statAllVal">0</span>
+    </div>
+    <div class="statCard" id="statBuy" onclick="setFilter('buy')">
+      <span class="statLabel">🟢 பை</span>
+      <span class="statVal green" id="statBuyVal">0</span>
+    </div>
+    <div class="statCard" id="statSell" onclick="setFilter('sell')">
+      <span class="statLabel">🔴 செல்</span>
+      <span class="statVal red" id="statSellVal">0</span>
+    </div>
+    <div class="statCard" id="statGainers" onclick="setFilter('gainers')">
+      <span class="statLabel">📈 உயர்வு</span>
+      <span class="statVal green" id="statGainersVal">0</span>
+    </div>
+    <div class="statCard" id="statLosers" onclick="setFilter('losers')">
+      <span class="statLabel">📉 இறப்பு</span>
+      <span class="statVal red" id="statLosersVal">0</span>
+    </div>
+  </div>
+
+  <div class="filterRow" id="filterRow" style="display:none;">
+    <input type="number" id="minPriceInput" placeholder="குறை ₹" onkeyup="if(event.key==='Enter') applyPriceFilter()">
+    <span>—</span>
+    <input type="number" id="maxPriceInput" placeholder="அதிக ₹" onkeyup="if(event.key==='Enter') applyPriceFilter()">
+    <button class="btnFilterGo" onclick="applyPriceFilter()">🎯 பில்டர்</button>
+    <button class="btnFilterClear" onclick="clearPriceFilter()">✖</button>
+  </div>
+
+  <div class="searchRow">
+    <input type="text" id="searchBox" placeholder="🔍 பங்கு பெயர் தேடல்..." oninput="renderTable()">
+  </div>
+
+  <div id="status">Setup-ல் Apps Script URL சேமிச்சு, 🔄 புதுப்பி கிளிக் பண்ணவும்.</div>
+
+  <div class="tableWrap" id="tableWrap" style="display:none;">
+    <table>
+      <thead>
+        <tr>
+          <th>பங்கு பெயர்</th>
+          <th>விலை</th>
+          <th>மாறிய தொகை</th>
+          <th>%</th>
+          <th>வால்யூம்</th>
+          <th id="thPrevClose" style="display:none;">நேற்றைய க்ளோஸ்</th>
+          <th>ரெக்கமண்ட்</th>
+          <th>S1</th>
+          <th>S2</th>
+          <th>S3</th>
+          <th>பிவோட்</th>
+          <th>R1</th>
+          <th>R2</th>
+          <th>R3</th>
+          <th>நகல்</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <div class="footRow" id="footRow" style="display:none;">
+    <span id="countInfo"></span>
+    <span id="updatedInfo"></span>
+  </div>
+</div>
+<div id="toast"></div>
+
+<div id="settingsModal">
+  <div class="modalCard">
+    <h3>⚙️ Apps Script Setup</h3>
+    <p>Pivot Table Apps Script Web App deploy பண்ணின பிறகு கிடைக்கிற URL-ஐ இங்கே ஒட்டவும்.</p>
+    <label>Apps Script Web App URL</label>
+    <input type="text" id="scriptUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
+    <label>Auto-refresh (நொடிகள்)</label>
+    <input type="number" id="refreshIntervalInput" value="60" min="20">
+    <div class="modalActions">
+      <button class="btnCancel" onclick="closeSettings()">ரத்து</button>
+      <button class="btnSave" onclick="saveSettings()">💾 சேமி</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let SCRIPT_URL = localStorage.getItem('pivot_table_script_url') || '';
+let REFRESH_SECONDS = parseInt(localStorage.getItem('pivot_table_refresh_secs') || '60', 10);
+let autoRefreshTimer = null;
+let stocksData = [];
+let showPrevClose = localStorage.getItem('pivot_table_show_prevclose') === '1';
+let currentFilter = 'all';
+let minPriceFilter = null;
+let maxPriceFilter = null;
+let autoEnabled = localStorage.getItem('pivot_table_auto_enabled') !== '0';
+
+function isMarketOpen(){
+  const now = new Date();
+  const day = now.getDay(); // 0 ஞாயிறு, 6 சனி
+  if (day === 0 || day === 6) return false;
+  const mins = now.getHours() * 60 + now.getMinutes();
+  return mins >= (9*60+15) && mins <= (15*60+30); // 9:15 - 15:30
+}
+
+function updateAutoBtnUI(){
+  const btn = document.getElementById('autoToggleBtn');
+  if (!autoEnabled){
+    btn.innerText = '▶️ ஆட்டோ ஆன்';
+    btn.classList.add('autoOff');
+  } else if (!isMarketOpen()){
+    btn.innerText = '⏸️ மார்கெட் இல்லை';
+    btn.classList.remove('autoOff');
+  } else {
+    btn.innerText = '⏸️ ஆட்டோ ஆஃப்';
+    btn.classList.remove('autoOff');
+  }
+}
+
+function toggleAutoRefresh(){
+  autoEnabled = !autoEnabled;
+  localStorage.setItem('pivot_table_auto_enabled', autoEnabled ? '1' : '0');
+  updateAutoBtnUI();
+  showToast(autoEnabled ? '▶️ ஆட்டோ ரீபிரஷ் ஆன்' : '⏸️ ஆட்டோ ரீபிரஷ் ஆஃப்');
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.innerText = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 1500);
+}
+
+function copyStock(name){
+  const done = () => showToast(`📋 "${name}" காப்பி ஆனது`);
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(name).then(done).catch(() => fallbackCopy(name, done));
+  } else {
+    fallbackCopy(name, done);
+  }
+}
+
+function copyValue(label, value){
+  if (value === '-' || value == null) return;
+  const text = `${label} ${value}`;
+  const done = () => showToast(`📋 "${text}" காப்பி ஆனது`);
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+  } else {
+    fallbackCopy(text, done);
+  }
+}
+
+function copyAllPivots(stock, s1, s2, s3, pivot, r1, r2, r3){
+  const text = `${stock}\nS1 ${s1}\nS2 ${s2}\nS3 ${s3}\nP ${pivot}\nR1 ${r1}\nR2 ${r2}\nR3 ${r3}`;
+  const done = () => showToast(`📋 ${stock} - 7 மதிப்புகளும் காப்பி ஆனது`);
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+  } else {
+    fallbackCopy(text, done);
+  }
+}
+
+function fallbackCopy(text, cb){
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try{ document.execCommand('copy'); cb(); }catch(e){}
+  document.body.removeChild(ta);
+}
+
+function togglePrevClose(){
+  showPrevClose = !showPrevClose;
+  localStorage.setItem('pivot_table_show_prevclose', showPrevClose ? '1' : '0');
+  document.getElementById('thPrevClose').style.display = showPrevClose ? '' : 'none';
+  document.getElementById('prevCloseBtn').style.background = showPrevClose ? 'var(--blue)' : 'var(--card)';
+  renderTable();
+}
+
+function openSettings(){
+  document.getElementById('scriptUrlInput').value = SCRIPT_URL;
+  document.getElementById('refreshIntervalInput').value = REFRESH_SECONDS;
+  document.getElementById('settingsModal').style.display = 'flex';
+}
+function closeSettings(){ document.getElementById('settingsModal').style.display = 'none'; }
+function saveSettings(){
+  SCRIPT_URL = document.getElementById('scriptUrlInput').value.trim();
+  REFRESH_SECONDS = parseInt(document.getElementById('refreshIntervalInput').value, 10) || 60;
+  localStorage.setItem('pivot_table_script_url', SCRIPT_URL);
+  localStorage.setItem('pivot_table_refresh_secs', REFRESH_SECONDS);
+  closeSettings();
+  setupAutoRefresh();
+  loadData();
+}
+function setupAutoRefresh(){
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  if (!SCRIPT_URL) return;
+  autoRefreshTimer = setInterval(() => {
+    updateAutoBtnUI();
+    if (autoEnabled && isMarketOpen()) loadData();
+  }, REFRESH_SECONDS * 1000);
+}
+
+function setStatus(msg, isError){
+  const el = document.getElementById('status');
+  el.style.display = 'block';
+  el.className = isError ? 'error' : '';
+  el.innerText = msg;
+  document.getElementById('tableWrap').style.display = 'none';
+  document.getElementById('footRow').style.display = 'none';
+}
+
+async function loadData(){
+  if (!SCRIPT_URL){
+    setStatus('⚙️ முதலில் Setup-ல் Apps Script URL சேமிக்கவும்.', true);
+    return;
+  }
+  setStatus('தரவு ஏற்றப்படுகிறது...');
+  try{
+    const resp = await fetch(`${SCRIPT_URL}?_=${Date.now()}`);
+    const json = await resp.json();
+    if (!json.status) throw new Error(json.error || 'தரவு கிடைக்கவில்லை');
+    stocksData = json.data || [];
+    stocksData.sort((a,b) => Math.abs(b.percent) - Math.abs(a.percent));
+    document.getElementById('status').style.display = 'none';
+    document.getElementById('tableWrap').style.display = 'block';
+    document.getElementById('footRow').style.display = 'flex';
+    document.getElementById('statsRow').style.display = 'flex';
+    document.getElementById('filterRow').style.display = 'flex';
+    document.getElementById('updatedInfo').innerText = 'கடைசி புதுப்பிப்பு: ' + new Date(json.updated).toLocaleTimeString('ta-IN');
+    updateStats();
+    highlightActiveFilter();
+    renderTable();
+  }catch(err){
+    setStatus('❌ ' + err.message, true);
+  }
+}
+
+function updateStats(){
+  document.getElementById('statAllVal').innerText = stocksData.length;
+  document.getElementById('statBuyVal').innerText = stocksData.filter(s => s.recommend === 'BUY').length;
+  document.getElementById('statSellVal').innerText = stocksData.filter(s => s.recommend === 'SELL').length;
+  document.getElementById('statGainersVal').innerText = stocksData.filter(s => s.percent > 0).length;
+  document.getElementById('statLosersVal').innerText = stocksData.filter(s => s.percent < 0).length;
+}
+
+function highlightActiveFilter(){
+  ['statAll','statBuy','statSell','statGainers','statLosers'].forEach(id => {
+    document.getElementById(id).classList.remove('active');
+  });
+  const map = { all:'statAll', buy:'statBuy', sell:'statSell', gainers:'statGainers', losers:'statLosers' };
+  document.getElementById(map[currentFilter]).classList.add('active');
+}
+
+function setFilter(type){
+  currentFilter = type;
+  highlightActiveFilter();
+  renderTable();
+}
+
+function applyPriceFilter(){
+  const minVal = document.getElementById('minPriceInput').value;
+  const maxVal = document.getElementById('maxPriceInput').value;
+  minPriceFilter = minVal !== '' ? parseFloat(minVal) : null;
+  maxPriceFilter = maxVal !== '' ? parseFloat(maxVal) : null;
+  renderTable();
+}
+
+function clearPriceFilter(){
+  minPriceFilter = null;
+  maxPriceFilter = null;
+  document.getElementById('minPriceInput').value = '';
+  document.getElementById('maxPriceInput').value = '';
+  renderTable();
+}
+
+function fmt(n){ return (n == null) ? '-' : Number(n).toFixed(2); }
+
+function fmtVolume(n){
+  if (n == null || isNaN(n)) return '-';
+  n = Number(n);
+  if (n >= 10000000) return (n/10000000).toFixed(2) + ' Cr';
+  if (n >= 100000) return (n/100000).toFixed(2) + ' L';
+  if (n >= 1000) return (n/1000).toFixed(1) + ' K';
+  return String(n);
+}
+
+function renderTable(){
+  const q = document.getElementById('searchBox').value.trim().toUpperCase();
+  let filtered = stocksData.filter(s => !q || s.stock.toUpperCase().includes(q));
+
+  if (currentFilter === 'buy') filtered = filtered.filter(s => s.recommend === 'BUY');
+  else if (currentFilter === 'sell') filtered = filtered.filter(s => s.recommend === 'SELL');
+  else if (currentFilter === 'gainers') filtered = filtered.filter(s => s.percent > 0);
+  else if (currentFilter === 'losers') filtered = filtered.filter(s => s.percent < 0);
+
+  if (minPriceFilter !== null) filtered = filtered.filter(s => s.price >= minPriceFilter);
+  if (maxPriceFilter !== null) filtered = filtered.filter(s => s.price <= maxPriceFilter);
+
+  document.getElementById('countInfo').innerText = `${filtered.length} / ${stocksData.length} பங்குகள்`;
+
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = filtered.map(s => `
+    <tr>
+      <td class="stockName" onclick="copyStock('${s.stock}')">${s.stock}</td>
+      <td>₹${fmt(s.price)}</td>
+      <td class="${s.change >= 0 ? 'supCol' : 'resCol'}">${s.change >= 0 ? '+' : ''}${fmt(s.change)}</td>
+      <td class="${s.percent >= 0 ? 'supCol' : 'resCol'}">${s.percent >= 0 ? '+' : ''}${fmt(s.percent)}%</td>
+      <td class="${(s.volume || 0) < 1000000 ? 'volLow' : 'volHigh'}">${fmtVolume(s.volume)}</td>
+      ${showPrevClose ? `<td>${fmt(s.prevClose)}</td>` : ''}
+      <td>${s.recommend ? `<span class="rec ${s.recommend}">${s.recommend === 'BUY' ? 'பை' : 'செல்'}</span>` : '-'}</td>
+      <td class="supCol pivotVal" onclick="copyValue('S1', '${fmt(s.s1)}')">${fmt(s.s1)}</td>
+      <td class="supCol pivotVal" onclick="copyValue('S2', '${fmt(s.s2)}')">${fmt(s.s2)}</td>
+      <td class="supCol pivotVal" onclick="copyValue('S3', '${fmt(s.s3)}')">${fmt(s.s3)}</td>
+      <td class="pivotCol pivotVal" onclick="copyValue('P', '${fmt(s.pivot)}')">${fmt(s.pivot)}</td>
+      <td class="resCol pivotVal" onclick="copyValue('R1', '${fmt(s.r1)}')">${fmt(s.r1)}</td>
+      <td class="resCol pivotVal" onclick="copyValue('R2', '${fmt(s.r2)}')">${fmt(s.r2)}</td>
+      <td class="resCol pivotVal" onclick="copyValue('R3', '${fmt(s.r3)}')">${fmt(s.r3)}</td>
+      <td><button onclick="copyAllPivots('${s.stock}','${fmt(s.s1)}','${fmt(s.s2)}','${fmt(s.s3)}','${fmt(s.pivot)}','${fmt(s.r1)}','${fmt(s.r2)}','${fmt(s.r3)}')" style="padding:4px 8px;border:none;border-radius:6px;background:var(--blue);color:#fff;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;">📋 அனைத்தும்</button></td>
+    </tr>
+  `).join('');
+}
+
+window.onload = function(){
+  if (showPrevClose){
+    document.getElementById('thPrevClose').style.display = '';
+    document.getElementById('prevCloseBtn').style.background = 'var(--blue)';
+  }
+  updateAutoBtnUI();
+  setupAutoRefresh();
+  if (SCRIPT_URL) loadData();
+};
+</script>
+</body>
+</html>
